@@ -169,6 +169,7 @@ void game_over(){
 void setup() {
   setup_badge();
   setup_game();
+  splash_screen();
 }
 
 void loop() {
