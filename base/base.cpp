@@ -73,3 +73,16 @@ void splash_screen() {
 	
     gfx->fillScreen(BLACK);
 }
+
+/*
+ * Calls loop() method on all the buttons
+ */
+void buttons_loop() {
+  buttonUp.loop();
+  buttonDown.loop();
+  buttonLeft.loop();
+  buttonRight.loop();
+  buttonCenter.loop();
+  buttonA.loop();
+  buttonB.loop();
+}

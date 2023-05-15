@@ -60,4 +60,9 @@ void draw_leds();
  */
 void splash_screen();
 
+/*
+ * Calls loop() method on all the buttons
+ */
+void buttons_loop();
+
 #endif
