@@ -19,6 +19,7 @@ struct Snake {
   coord body[MAX_SNAKE_SIZE];
   int len;
   coord dir;
+  coord prevDir;
 };
 
 // Global variables for the game
@@ -28,29 +29,29 @@ float oldTime;
 float timer;
 float updateRate = 5; //speed
 bool restart = true;
+bool gameMap[COLS][ROWS];
 
 void setup_game(){
   snake = {
     INITIAL_POS,
     {INITIAL_POS, INITIAL_POS, INITIAL_POS, INITIAL_POS, INITIAL_POS},
     5, 
+    {1,0},
     {1,0}
   };
-  apple = {(int)random(0,COLS), (int)random(0,ROWS)};
+  apple = move_apple();
   oldTime = 0;
   timer = 0;
   restart = false;
-  gfx->fillScreen(BLACK);
-}
 
-void buttonsLoop() {
-  buttonUp.loop();
-  buttonDown.loop();
-  buttonLeft.loop();
-  buttonRight.loop();
-  buttonCenter.loop();
-  buttonA.loop();
-  buttonB.loop();
+  for(int i=0; i<COLS; i++){
+    for(int j=0; j<ROWS; j++){
+      gameMap[i][j] = false;
+    }
+  }
+  gameMap[snake.head.x][snake.head.y] = true;
+
+  gfx->fillScreen(BLACK);
 }
 
 float calculateDeltaTime(){
@@ -61,7 +62,7 @@ float calculateDeltaTime(){
 }
 
 struct coord check_dir(){
-  buttonsLoop();
+  buttons_loop();
   if (buttonUp.isPressed()){
     return {0,-1};
   } else if (buttonDown.isPressed()){
@@ -74,11 +75,13 @@ struct coord check_dir(){
   return {0,0};
 }
 
-void removeFirst(){
+void remove_first(){
   gfx->fillRect(snake.body[0].x * GRID_SIZE, snake.body[0].y * GRID_SIZE, GRID_SIZE, GRID_SIZE, BLACK);
+  gameMap[snake.body[0].x][snake.body[0].y] = false;
   for(int j=1; j<snake.len; j++){
     snake.body[j-1]= snake.body[j];
   }
+  gameMap[snake.head.x][snake.head.y] = true;
 }
 
 void update_snake(){
@@ -106,13 +109,14 @@ void update_snake(){
   //Check if The snake ate the apple
   if(apple.x == newHead.x && apple.y == newHead.y){
     snake.len = snake.len+1;
-    apple = {(int)random(0,COLS),(int)random(0,ROWS)};
+    apple = move_apple();
   }else{
-    removeFirst();//Shifting the array to the left
+    remove_first(); //Shifting the array to the left
   }
   
   snake.body[snake.len-1] = newHead;
   snake.head = newHead;
+  snake.prevDir = snake.dir;
 }
 
 void render_snake(){
@@ -138,7 +142,7 @@ void snake_loop(){
   coord newDir = check_dir();
   if (newDir.x != 0 || newDir.y != 0)
     // avoid 180 deg turns
-    if (newDir.x != -snake.dir.x || newDir.y != -snake.dir.y) 
+    if (newDir.x != -snake.prevDir.x || newDir.y != -snake.prevDir.y) 
       snake.dir = newDir;
   
   if(timer > 1000/updateRate){
@@ -164,6 +168,14 @@ void game_over(){
   gfx->print("GAME OVER");
 
   delay(3000);
+}
+
+coord move_apple(){
+  coord newApple = {(int)random(0,COLS),(int)random(0,ROWS)};
+  while(gameMap[newApple.x][newApple.y]){
+    newApple = {(int)random(0,COLS),(int)random(0,ROWS)};
+  }
+  return newApple;
 }
 
 void setup() {
