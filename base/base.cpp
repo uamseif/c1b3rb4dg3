@@ -3,6 +3,9 @@
 */
 
 #include "base.h"
+#include "logo_cibertracks.c"
+#include "logo_seif.c"
+#include "logo_seif_glitch.c"
 
 int leds[] = {LED_1_PIN, LED_2_PIN, LED_3_PIN, LED_4_PIN, LED_5_PIN, LED_6_PIN, LED_7_PIN, LED_8_PIN};
 bool led_state[] = {false, false, false, false, false, false, false, false};
@@ -46,4 +49,27 @@ void draw_leds() {
     for (int i = 0; i < ARRAY_SIZE(leds); i++) {
         digitalWrite(leds[i], led_state[i]?HIGH:LOW);
     }
+}
+
+/*
+ * Draws the c1b3rtr4cks logo, then the SEIF logo with a glitch effect
+ */
+void splash_screen() {
+	gfx->fillScreen(BLACK);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_cibertracks, 128, 160);
+	delay(1500);
+
+	gfx->fillScreen(BLACK);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif, 128, 160);
+	delay(500);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif_glitch, 128, 160);
+	delay(150);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif, 128, 160);
+	delay(800);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif_glitch, 128, 160);
+	delay(100);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif, 128, 160);
+	delay(800);
+	
+    gfx->fillScreen(BLACK);
 }
