@@ -18,8 +18,8 @@
 #define KH_YELLOW_OFF RGB565(95, 62, 1)
 #define KH_GREEN_OFF RGB565(15, 51, 4)
 
-#define UP_ARROW 0x1E
-#define DOWN_ARROW 0x1F
+#define UP_ARROW 0x18
+#define DOWN_ARROW 0x19
 
 struct coord {
    int x;
@@ -107,6 +107,15 @@ void answer_selection_loop(){
     buttonManager.selectAnswer(answer);
 }
 
+void print_centered(const char *text, short y, short color=WHITE){
+    int16_t x1, y1;
+    uint16_t w, h;
+    gfx->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+    gfx->setCursor(SCREEN_WIDTH/2 - w/2, y);
+    gfx->setTextColor(color);
+    gfx->print(text);
+}
+
 void pin_selection(){
     short digits[3] = {0,0,0};
     const short positions[3] = {SCREEN_WIDTH/2 -20-5-10, SCREEN_WIDTH/2-10, SCREEN_WIDTH/2 +10+5};
@@ -117,7 +126,18 @@ void pin_selection(){
     gfx->setTextColor(WHITE);
     gfx->setTextSize(1);
     gfx->setCursor(0, 0);
-    gfx->println("Introduce el pin de la pantalla. Pulsa A para continuar"); // TODO: print prettier
+
+    // do the stuff above but declaring the 3 strings in an array and looping over it
+    const char *lines[3] = {
+        "Introduce el pin", 
+        "que se muestra en", 
+        "pantalla y pulsa A"
+    };
+    for (int i=0; i<3; i++){
+        print_centered(lines[i], 10 + 9*(i+1));
+    }
+    
+
     bool changed = true;
 
     do {
@@ -138,25 +158,26 @@ void pin_selection(){
         }
 
         if (changed){
-            gfx->fillRect(positions[i], SCREEN_HEIGHT/2 - 14, 20, 28, BLACK);
+            gfx->fillRect(positions[i], SCREEN_HEIGHT/2 + 10, 20, 28, BLACK);
             for (int j=0; j<3; j++){
                 gfx->setTextSize(2);
-                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 - 14 - 30+7, UP_ARROW, j==i ? LIGHTGREY : BLACK, BLACK);
-                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 - 14 + 30+7, DOWN_ARROW, j==i ? LIGHTGREY : BLACK, BLACK);
+                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 - 25+7, UP_ARROW, j==i ? LIGHTGREY : BLACK, BLACK);
+                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 - 25+7 + 2, UP_ARROW, BLACK, BLACK);
+                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 + 24+7, DOWN_ARROW, j==i ? LIGHTGREY : BLACK, BLACK);
+                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 + 24+7 - 2, DOWN_ARROW, BLACK, BLACK);
 
                 gfx->setTextSize(4);
                 gfx->setTextColor(j==i ? WHITE : DARKGREY);
-                gfx->setCursor(positions[j], SCREEN_HEIGHT/2 - 14);
+                gfx->setCursor(positions[j], SCREEN_HEIGHT/2 + 10);
                 gfx->print(digits[j]);
                 gfx->setTextColor(j==i ? WHITE : BLACK);
             }
-            
-        }        
+            changed = false;
+        }
 
         if(buttonA.isPressed()){
             pin = digits[0]*100 + digits[1]*10 + digits[2];
         }
-        changed = false;
     } while (!pin);
 
     // TODO: send pin to server
@@ -165,10 +186,43 @@ void pin_selection(){
     gfx->fillScreen(BLACK);
 }
 
+void waiting_screen(){
+    gfx->fillScreen(BLACK);
+    gfx->setTextColor(WHITE);
+    gfx->setTextSize(1);
+    gfx->setCursor(0, 0);
+
+    int16_t x1, y1;
+    uint16_t w, h;
+    gfx->setTextColor(KH_GREEN);
+    gfx->getTextBounds("Est          ", 0, 0, &x1, &y1, &w, &h);
+    gfx->setCursor(SCREEN_WIDTH/2 - w/2, SCREEN_HEIGHT/3-5);
+    gfx->print("Est");
+    gfx->print(static_cast<char>(0x86));
+    gfx->print("s dentro!");
+    gfx->setTextColor(WHITE);
+    print_centered("Comenzaremos en", SCREEN_HEIGHT/3 + 9);
+    print_centered("breves momentos", SCREEN_HEIGHT/3 + 18);
+
+    gfx->setTextSize(3);
+    int i = 0;
+    while (i < 20){ // TODO: change this condition to a request to the server each second
+        print_centered(i % 4 == 0 ? ".  " : i % 4 == 1 ? ".. " : "...", SCREEN_HEIGHT/2 + 10, i % 4 == 3 ? BLACK : WHITE);
+        led_state[(i+7)%8] = false;
+        led_state[i++%8] = true;
+        draw_leds();
+        delay(500);
+    }
+    
+    led_state[(i-1)%8] = false;
+    draw_leds();
+    gfx->fillScreen(BLACK);
+}
+
 void setup(){
     setup_badge();
     pin_selection();
-    // TODO: waiting screen
+    waiting_screen();
     answer_selection_loop();
 }
 
