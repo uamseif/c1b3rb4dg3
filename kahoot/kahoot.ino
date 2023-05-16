@@ -21,6 +21,11 @@
 #define UP_ARROW 0x18
 #define DOWN_ARROW 0x19
 
+const char* ssid = "Bubbango";
+const char* password = "JejeJeje";
+
+const char* funny_text = "Hola mundo!";
+
 struct coord {
    int x;
    int y;
@@ -186,6 +191,33 @@ void pin_selection(){
     gfx->fillScreen(BLACK);
 }
 
+/*
+ * Sets led_state to the corresponding values, such that the leds light up
+ * according to the binary representation of the ascii code of character c
+ * @param c: character to be represented
+ */
+void assign_leds(char c){
+    for (int i=7, j=1; i>=0, j<=256; i--, j*=2){
+        led_state[i] = (j & c) != 0;
+    }
+}
+
+// Change led_state to create an effect
+// ........ -> -....... -> --...... -> ---..... -> ----.... -> .----... -> ..----.. -> ...----. -> ....---- -> .....--- -> ......-- -> .......- -> ........
+// ........ -> .......- -> ......-- -> .....--- -> ....---- -> ...----. -> ..----.. -> .----... -> ----.... -> ---..... -> --...... -> -....... -> ........
+void waiting_screen_leds(int state){
+    state = state % 26;
+    for (int i=0; i<8; i++){
+        if (state < 13){
+            led_state[i] = (state > i) && (state-5 < i);
+        } else if (state < 26){
+            led_state[i] = (25-state > i) && (20-state < i);
+        } else {
+            led_state[i] = false;
+        }
+    }
+}
+
 void waiting_screen(){
     gfx->fillScreen(BLACK);
     gfx->setTextColor(WHITE);
@@ -208,18 +240,26 @@ void waiting_screen(){
     int i = 0;
     while (i < 20){ // TODO: change this condition to a request to the server each second
         print_centered(i % 4 == 0 ? ".  " : i % 4 == 1 ? ".. " : "...", SCREEN_HEIGHT/2 + 10, i % 4 == 3 ? BLACK : WHITE);
-        led_state[(i+7)%8] = false;
-        led_state[i++%8] = true;
+        // if (i%4 == 0){
+        //     assign_leds(funny_text[(i/4)%ARRAY_SIZE(funny_text)]);
+        // }
+        waiting_screen_leds(i);
         draw_leds();
         delay(500);
+        i++;
     }
     
-    led_state[(i-1)%8] = false;
     draw_leds();
     gfx->fillScreen(BLACK);
 }
 
+// void connect_wifi(){
+//     WiFi.mode(WIFI_STA);
+//     WiFi.begin(ssid, password);
+// }
+
 void setup(){
+    // connect_wifi();
     setup_badge();
     pin_selection();
     waiting_screen();
