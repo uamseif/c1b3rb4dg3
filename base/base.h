@@ -56,6 +56,11 @@ void setup_badge();
 void draw_leds();
 
 /*
+ * Turns off all the LEDs
+ */
+void clear_leds();
+
+/*
  * Draws the c1b3rtr4cks logo, then the SEIF logo with a glitch effect
  */
 void splash_screen();

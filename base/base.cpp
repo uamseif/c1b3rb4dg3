@@ -52,6 +52,15 @@ void draw_leds() {
 }
 
 /*
+ * Turns off all the LEDs
+ */
+void clear_leds() {
+    for (int i = 0; i < ARRAY_SIZE(leds); i++) {
+        digitalWrite(leds[i], LOW);
+    }
+}
+
+/*
  * Draws the c1b3rtr4cks logo, then the SEIF logo with a glitch effect
  */
 void splash_screen() {
