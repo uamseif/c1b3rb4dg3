@@ -1,4 +1,5 @@
 #include "base.h"
+#include "wifi_creds.h"
 
 #define HORIZONTAL 1
 #define VERTICAL 2
@@ -20,9 +21,6 @@
 
 #define UP_ARROW 0x18
 #define DOWN_ARROW 0x19
-
-const char* ssid = "Bubbango";
-const char* password = "JejeJeje";
 
 const char* funny_text = "Hola mundo!";
 
