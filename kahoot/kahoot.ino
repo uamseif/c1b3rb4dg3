@@ -203,19 +203,18 @@ void assign_leds(char c){
 }
 
 // Change led_state to create an effect
-// ........ -> -....... -> --...... -> ---..... -> ----.... -> .----... -> ..----.. -> ...----. -> ....---- -> .....--- -> ......-- -> .......- -> ........
-// ........ -> .......- -> ......-- -> .....--- -> ....---- -> ...----. -> ..----.. -> .----... -> ----.... -> ---..... -> --...... -> -....... -> ........
+// ........ -> -....... -> --...... -> ---..... -> .---.... -> ..---... -> ...---.. -> ....---. -> .....--- -> ......-- -> .......- -> ........
+// ........ -> .......- -> ......-- -> .....--- -> ....---. -> ...---.. -> ..---... -> .---.... -> ---..... -> --...... -> -....... -> ........
 void waiting_screen_leds(int state){
-    state = state % 26;
+    state = state % 22;
     for (int i=0; i<8; i++){
-        if (state < 13){
-            led_state[i] = (state > i) && (state-5 < i);
-        } else if (state < 26){
-            led_state[i] = (25-state > i) && (20-state < i);
+        if (state < 12){
+            led_state[i] = (state > i) && (state-4 < i);
         } else {
-            led_state[i] = false;
+            led_state[i] = (22-state > i) && (18-state < i);
         }
     }
+    draw_leds();
 }
 
 void waiting_screen(){
@@ -238,18 +237,14 @@ void waiting_screen(){
 
     gfx->setTextSize(3);
     int i = 0;
-    while (i < 20){ // TODO: change this condition to a request to the server each second
+    while (i < 60){ // TODO: change this condition to a request to the server each second
         print_centered(i % 4 == 0 ? ".  " : i % 4 == 1 ? ".. " : "...", SCREEN_HEIGHT/2 + 10, i % 4 == 3 ? BLACK : WHITE);
-        // if (i%4 == 0){
-        //     assign_leds(funny_text[(i/4)%ARRAY_SIZE(funny_text)]);
-        // }
         waiting_screen_leds(i);
-        draw_leds();
-        delay(500);
+        delay(250);
         i++;
     }
     
-    draw_leds();
+    clear_leds();
     gfx->fillScreen(BLACK);
 }
 
