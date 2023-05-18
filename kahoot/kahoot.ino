@@ -1,5 +1,8 @@
 #include "base.h"
 #include "wifi_creds.h"
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <Arduino_JSON.h>
 
 #define HORIZONTAL 1
 #define VERTICAL 2
@@ -22,7 +25,96 @@
 #define UP_ARROW 0x18
 #define DOWN_ARROW 0x19
 
+#define API_URL "http://chatarritant.sytes.net:8000/api/"
+#define API_PARTICIPANT API_URL "participant/"
+#define API_GAMES API_URL "games/"
+#define API_GUESS API_URL "guess/"
+
+
 const char* funny_text = "Hola mundo!";
+
+struct CustomResponse {
+    bool error;
+    String body;
+};
+
+class APIHandler {
+    public:
+        CustomResponse send_pin(int selectedPin){
+            send_request_leds();
+            http.begin(API_PARTICIPANT);
+            http.addHeader("Content-Type", "application/json");
+            String args = "{\"game\": " + String(selectedPin) + "}";
+            http.POST(args);
+            String response = http.getString();
+            http.end();
+
+            JSONVar participant = JSON.parse(response);
+            if (JSON.typeof(participant) == "undefined") {
+                return CustomResponse{true, "Error interno"};
+            }
+
+            JSONVar keys = participant.keys();
+            bool error = false;
+            for (int i = 0; i < keys.length() && !error; i++) {
+                error |= JSON.stringify(keys[i]) == "\"error\"";
+            }
+
+            if (error){
+                return CustomResponse{true, JSONHelper(participant["error"])};
+            } 
+
+            pin = selectedPin;
+            alias = JSONHelper(participant["alias"]);
+            uuidP = JSONHelper(participant["uuidP"]);
+            return CustomResponse{false, alias};
+        }
+
+        bool game_has_started(){
+            http.begin(API_GAMES+String(pin)+"/");
+            http.GET();
+            String response = http.getString();
+            http.end();
+
+            JSONVar game = JSON.parse(response);
+            if (JSON.typeof(game) == "undefined") {
+                return false;
+            }
+
+            JSONVar keys = game.keys();
+            bool hasStarted = false;
+            for (int i = 0; i < keys.length() && !hasStarted; i++) {
+                if (JSON.stringify(keys[i]) == "\"state\""){
+                    hasStarted = int(game[keys[i]]) > 1;
+                }
+            }
+            return hasStarted;
+        }
+
+    private:
+        HTTPClient http;
+        int pin;
+        String alias;
+        String uuidP;
+        
+        void send_request_leds(){
+            for (int i=7; i>=0; i--){
+                led_state[i] = true;
+                draw_leds();
+                led_state[i] = false;
+                delay(15+2*i);
+            }
+            draw_leds();
+        }   
+
+        String JSONHelper(JSONVar json){
+            String str = JSON.stringify(json);
+            return str.substring(1, str.length()-1); // remove quotes 
+        }
+};
+
+APIHandler apiHandler;
+
 
 struct coord {
    int x;
@@ -110,83 +202,83 @@ void answer_selection_loop(){
     buttonManager.selectAnswer(answer);
 }
 
-void print_centered(const char *text, short y, short color=WHITE){
+void print_centered(const char *text, short y, short color=WHITE, short size=1){
     int16_t x1, y1;
     uint16_t w, h;
+    gfx->setTextColor(color);
+    gfx->setTextSize(size);
     gfx->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
     gfx->setCursor(SCREEN_WIDTH/2 - w/2, y);
-    gfx->setTextColor(color);
     gfx->print(text);
 }
 
-void pin_selection(){
-    short digits[3] = {0,0,0};
+void print_centered(String text, short y, short color=WHITE, short size=1){
+    print_centered(text.c_str(), y, color, size);
+}
+
+String pin_selection(){
     const short positions[3] = {SCREEN_WIDTH/2 -20-5-10, SCREEN_WIDTH/2-10, SCREEN_WIDTH/2 +10+5};
-    short pin = 0;
+    CustomResponse response;
+    short digits[3] = {0,0,0};
     short i = 0;
-
-    gfx->fillScreen(BLACK);
-    gfx->setTextColor(WHITE);
-    gfx->setTextSize(1);
-    gfx->setCursor(0, 0);
-
-    // do the stuff above but declaring the 3 strings in an array and looping over it
-    const char *lines[3] = {
-        "Introduce el pin", 
-        "que se muestra en", 
-        "pantalla y pulsa A"
-    };
-    for (int i=0; i<3; i++){
-        print_centered(lines[i], 10 + 9*(i+1));
-    }
     
-
-    bool changed = true;
-
     do {
-        buttons_loop();
-        
-        if(buttonUp.isPressed()){
-            digits[i] = (digits[i] + 1) % 10;
-            changed = true;
-        } else if (buttonDown.isPressed()){
-            digits[i] = (digits[i] +9) % 10;
-            changed = true;
-        } else if (buttonRight.isPressed()){
-            i = (i + 1) % 3;
-            changed = true;
-        } else if (buttonLeft.isPressed()){
-            i = (i + 2) % 3;
-            changed = true;
-        }
+        print_centered("Introduce el    ", 14 + 9);
+        print_centered("             pin", 14 + 9, KH_YELLOW);
+        print_centered("que se muestra en", 14 + 18);
+        print_centered("pantalla y pulsa A", 14 + 27);       
 
-        if (changed){
-            gfx->fillRect(positions[i], SCREEN_HEIGHT/2 + 10, 20, 28, BLACK);
-            for (int j=0; j<3; j++){
-                gfx->setTextSize(2);
-                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 - 25+7, UP_ARROW, j==i ? LIGHTGREY : BLACK, BLACK);
-                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 - 25+7 + 2, UP_ARROW, BLACK, BLACK);
-                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 + 24+7, DOWN_ARROW, j==i ? LIGHTGREY : BLACK, BLACK);
-                gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 10 + 24+7 - 2, DOWN_ARROW, BLACK, BLACK);
-
-                gfx->setTextSize(4);
-                gfx->setTextColor(j==i ? WHITE : DARKGREY);
-                gfx->setCursor(positions[j], SCREEN_HEIGHT/2 + 10);
-                gfx->print(digits[j]);
-                gfx->setTextColor(j==i ? WHITE : BLACK);
+        short pin = -1;
+        bool changed = true;
+        do {
+            buttons_loop();
+            
+            if(buttonUp.isPressed()){
+                digits[i] = (digits[i] + 1) % 10;
+                changed = true;
+            } else if (buttonDown.isPressed()){
+                digits[i] = (digits[i] +9) % 10;
+                changed = true;
+            } else if (buttonRight.isPressed()){
+                i = (i + 1) % 3;
+                changed = true;
+            } else if (buttonLeft.isPressed()){
+                i = (i + 2) % 3;
+                changed = true;
             }
-            changed = false;
-        }
 
-        if(buttonA.isPressed()){
-            pin = digits[0]*100 + digits[1]*10 + digits[2];
-        }
-    } while (!pin);
+            if (changed){
+                gfx->fillRect(positions[i], SCREEN_HEIGHT/2 + 15, 20, 28, BLACK);
+                for (int j=0; j<3; j++){
+                    gfx->setTextSize(2);
+                    gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 15 - 25+7, UP_ARROW, j==i ? KH_YELLOW : BLACK, BLACK);
+                    gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 15 - 25+7 + 2, UP_ARROW, BLACK, BLACK);
+                    gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 15 + 24+7, DOWN_ARROW, j==i ? KH_YELLOW : BLACK, BLACK);
+                    gfx->drawChar(positions[j]+5, SCREEN_HEIGHT/2 + 15 + 24+7 - 2, DOWN_ARROW, BLACK, BLACK);
 
-    // TODO: send pin to server
-    // TODO: dont exit the while loop if the pin is wrong
+                    gfx->setTextSize(4);
+                    gfx->setTextColor(j==i ? WHITE : DARKGREY);
+                    gfx->setCursor(positions[j], SCREEN_HEIGHT/2 + 15);
+                    gfx->print(digits[j]);
+                    gfx->setTextColor(j==i ? WHITE : BLACK);
+                }
+                changed = false;
+            }
+
+            if(buttonA.isPressed()){
+                pin = digits[0]*100 + digits[1]*10 + digits[2];
+            }
+        } while (pin == -1);
+
+        response = apiHandler.send_pin(pin);
+        if (response.error){
+            gfx->fillScreen(BLACK);
+            print_centered(response.body.c_str(), 60, KH_RED);
+        }
+    } while (response.error);
 
     gfx->fillScreen(BLACK);
+    return response.body;
 }
 
 /*
@@ -200,62 +292,49 @@ void assign_leds(char c){
     }
 }
 
-// Change led_state to create an effect
-// ........ -> -....... -> --...... -> ---..... -> .---.... -> ..---... -> ...---.. -> ....---. -> .....--- -> ......-- -> .......- -> ........
-// ........ -> .......- -> ......-- -> .....--- -> ....---. -> ...---.. -> ..---... -> .---.... -> ---..... -> --...... -> -....... -> ........
-void waiting_screen_leds(int state){
-    state = state % 22;
-    for (int i=0; i<8; i++){
-        if (state < 12){
-            led_state[i] = (state > i) && (state-4 < i);
-        } else {
-            led_state[i] = (22-state > i) && (18-state < i);
-        }
-    }
-    draw_leds();
-}
-
-void waiting_screen(){
+void waiting_screen(String alias){
     gfx->fillScreen(BLACK);
-    gfx->setTextColor(WHITE);
-    gfx->setTextSize(1);
-    gfx->setCursor(0, 0);
+    print_centered("Todo listo!", SCREEN_HEIGHT/6, KH_GREEN);
+    print_centered("Comenzaremos en", SCREEN_HEIGHT/4);
+    print_centered("breves momentos", SCREEN_HEIGHT/4 + 9);
 
-    int16_t x1, y1;
-    uint16_t w, h;
-    gfx->setTextColor(KH_GREEN);
-    gfx->getTextBounds("Est          ", 0, 0, &x1, &y1, &w, &h);
-    gfx->setCursor(SCREEN_WIDTH/2 - w/2, SCREEN_HEIGHT/3-5);
-    gfx->print("Est");
-    gfx->print(static_cast<char>(0x86));
-    gfx->print("s dentro!");
-    gfx->setTextColor(WHITE);
-    print_centered("Comenzaremos en", SCREEN_HEIGHT/3 + 9);
-    print_centered("breves momentos", SCREEN_HEIGHT/3 + 18);
+    print_centered("Tu alias es:", SCREEN_HEIGHT/2);
+    print_centered(alias, 2*SCREEN_HEIGHT/3, KH_YELLOW, 2);
 
-    gfx->setTextSize(3);
     int i = 0;
-    while (i < 60){ // TODO: change this condition to a request to the server each second
-        print_centered(i % 4 == 0 ? ".  " : i % 4 == 1 ? ".. " : "...", SCREEN_HEIGHT/2 + 10, i % 4 == 3 ? BLACK : WHITE);
-        waiting_screen_leds(i);
-        delay(250);
-        i++;
-    }
+    do {
+        led_state[i] = true;
+        draw_leds();
+        delay(1000);
+        led_state[i] = false;
+        i = (i+1) % 8;
+    } while (!apiHandler.game_has_started());
     
     clear_leds();
     gfx->fillScreen(BLACK);
 }
 
-// void connect_wifi(){
-//     WiFi.mode(WIFI_STA);
-//     WiFi.begin(ssid, password);
-// }
+void connect_wifi(){
+    gfx->fillScreen(BLACK);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(SSID, PASSWD);
+    gfx->print("Connecting");
+    while(WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        gfx->print(".");
+    }
+    gfx->println("");
+    gfx->print("Connected. IP Address: ");
+    gfx->println(WiFi.localIP());
+    delay(2000);
+    gfx->fillScreen(BLACK);
+}
 
 void setup(){
-    // connect_wifi();
     setup_badge();
-    pin_selection();
-    waiting_screen();
+    connect_wifi();
+    String alias = pin_selection();
+    waiting_screen(alias);
     answer_selection_loop();
 }
 
