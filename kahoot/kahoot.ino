@@ -2,7 +2,7 @@
 #include "wifi_creds.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <Arduino_JSON.h>
+#include <ArduinoJson.h>
 
 #define HORIZONTAL 1
 #define VERTICAL 2
@@ -49,24 +49,19 @@ class APIHandler {
             String response = http.getString();
             http.end();
 
-            JSONVar participant = JSON.parse(response);
-            if (JSON.typeof(participant) == "undefined") {
-                return CustomResponse{true, "Error interno"};
-            }
+            deserializeJson(doc, response);
 
-            JSONVar keys = participant.keys();
-            bool error = false;
-            for (int i = 0; i < keys.length() && !error; i++) {
-                error |= JSON.stringify(keys[i]) == "\"error\"";
+            for (JsonPair kv : doc.as<JsonObject>()) {
+                if (kv.key() == "error") {
+                    return CustomResponse{true, kv.value().as<String>()};
+                } else if (kv.key() == "alias") {
+                    alias = kv.value().as<String>();
+                } else if (kv.key() == "uuidP") {
+                    uuidP = kv.value().as<String>();
+                }
             }
-
-            if (error){
-                return CustomResponse{true, JSONHelper(participant["error"])};
-            } 
 
             pin = selectedPin;
-            alias = JSONHelper(participant["alias"]);
-            uuidP = JSONHelper(participant["uuidP"]);
             return CustomResponse{false, alias};
         }
 
@@ -76,17 +71,11 @@ class APIHandler {
             String response = http.getString();
             http.end();
 
-            JSONVar game = JSON.parse(response);
-            if (JSON.typeof(game) == "undefined") {
-                return false;
-            }
+            deserializeJson(doc, response);
 
-            JSONVar keys = game.keys();
             bool hasStarted = false;
-            for (int i = 0; i < keys.length() && !hasStarted; i++) {
-                if (JSON.stringify(keys[i]) == "\"state\""){
-                    hasStarted = int(game[keys[i]]) > 1;
-                }
+            for (JsonPair kv : doc.as<JsonObject>()) {
+                hasStarted |= kv.key() == "state" && kv.value() > 1;
             }
             return hasStarted;
         }
@@ -96,7 +85,8 @@ class APIHandler {
         int pin;
         String alias;
         String uuidP;
-        
+        StaticJsonDocument<256> doc;
+
         void send_request_leds(){
             for (int i=7; i>=0; i--){
                 led_state[i] = true;
@@ -106,11 +96,6 @@ class APIHandler {
             }
             draw_leds();
         }   
-
-        String JSONHelper(JSONVar json){
-            String str = JSON.stringify(json);
-            return str.substring(1, str.length()-1); // remove quotes 
-        }
 };
 
 APIHandler apiHandler;
@@ -273,7 +258,7 @@ String pin_selection(){
         response = apiHandler.send_pin(pin);
         if (response.error){
             gfx->fillScreen(BLACK);
-            print_centered(response.body.c_str(), 60, KH_RED);
+            print_centered(response.body, 60, KH_RED);
         }
     } while (response.error);
 
