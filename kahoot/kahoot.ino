@@ -30,14 +30,36 @@
 #define API_GAMES API_URL "games/"
 #define API_GUESS API_URL "guess/"
 
+#define GAME_ENDED 4
 
 struct CustomResponse {
     bool error;
     String body;
 };
 
+
+void printCentered(const char *text, short y, short color=WHITE, short size=1){
+    int16_t x1, y1;
+    uint16_t w, h;
+    gfx->setTextColor(color);
+    gfx->setTextSize(size);
+    gfx->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+    gfx->setCursor(SCREEN_WIDTH/2 - w/2, y);
+    gfx->print(text);
+}
+
+void printCentered(String text, short y, short color=WHITE, short size=1){
+    printCentered(text.c_str(), y, color, size);
+}
+
 class APIHandler {
     public:
+        APIHandler(){
+            pin = -1;
+            questionNumber = -1;
+            gameEnded = false;
+        }
+
         CustomResponse sendPin(int selectedPin){
             sendRequestLeds();
             http.begin(API_PARTICIPANT);
@@ -63,7 +85,7 @@ class APIHandler {
             return CustomResponse{false, alias};
         }
 
-        bool game_has_started(){
+        bool gameHasStarted(){
             http.begin(API_GAMES+String(pin)+"/");
             http.GET();
             String response = http.getString();
@@ -72,21 +94,71 @@ class APIHandler {
             deserializeJson(doc, response);
 
             bool hasStarted = false;
+            short questionNo;
             for (JsonPair kv : doc.as<JsonObject>()) {
                 hasStarted |= kv.key() == "state" && kv.value() > 1;
+                questionNo = kv.key() == "questionNo" ? kv.value().as<short>() : questionNo;
             }
+
+            if (hasStarted) questionNumber = questionNo;
             return hasStarted;
+        }
+
+        CustomResponse sendAnswer(short answer){
+            sendRequestLeds();
+            http.begin(API_GUESS);
+            http.addHeader("Content-Type", "application/json");
+            String args = "{\"game\": " + String(pin) + ", \"uuidp\": \"" + uuidP + "\", \"answer\": " + String(answer) + "}";
+            int responseCode = http.POST(args);
+            String response = http.getString();
+            http.end();
+
+            deserializeJson(doc, response);
+
+            for (JsonPair kv : doc.as<JsonObject>()) {
+                if (kv.key() == "error") {
+                    return CustomResponse{true, "Demasiado tarde!"};
+                }
+            }
+
+            return {responseCode < 200 && responseCode >= 300, "Error interno"};
+        }
+
+        bool gameIsNextQuestion(){
+            http.begin(API_GAMES+String(pin)+"/");
+            http.GET();
+            String response = http.getString();
+            http.end();
+
+            deserializeJson(doc, response);
+
+            bool nextQuestion = false;
+            short questionNo;
+            for (JsonPair kv : doc.as<JsonObject>()) {
+                nextQuestion |= kv.key() == "questionNo" && kv.value() > questionNumber;
+                questionNo = kv.key() == "questionNo" ? kv.value().as<short>() : questionNo;
+                gameEnded |= kv.key() == "state" && kv.value().as<short>() == GAME_ENDED;
+            }
+
+            if (nextQuestion) questionNumber = questionNo;
+            return nextQuestion;
+        }
+
+        bool gameHasEnded(){
+            return gameEnded;
         }
 
     private:
         HTTPClient http;
-        int pin;
+        short pin;
+        short questionNumber;
+        bool gameEnded;
         String alias;
         String uuidP;
         StaticJsonDocument<256> doc;
 
         void sendRequestLeds(){
-            for (int i=7; i>=0; i--){
+            for (auto i=7; i>=0; i--){
                 ledState[i] = true;
                 drawLeds();
                 ledState[i] = false;
@@ -109,10 +181,10 @@ class ButtonManager {
             return 2*selection[0] + selection[1];
         }
 
-        void drawButtons(){
+        void drawButtons(bool off=false){
             int selection = getSelection();
-            for (int i=0; i<4; i++){
-                drawButton(i, i == selection);
+            for (auto i=0; i<4; i++){
+                drawButton(i, i == selection, off);
             }
         }
 
@@ -123,17 +195,11 @@ class ButtonManager {
             } else if (dir == VERTICAL){
                 selection[0] = (selection[0] + 1) % 2;
             }
-            int i = getSelection();
+            auto i = getSelection();
             drawButton(prev);
             drawButton(i, true);
         }
 
-        void selectAnswer(short answer){
-            for (int i=0; i<4; i++){
-                drawButton(i, i == answer, true);
-            }
-            // TODO: send answer to server
-        }
 
     private:
         bool selection[2] = {false, false};
@@ -152,7 +218,7 @@ class ButtonManager {
             {SCREEN_WIDTH/2 + MARGIN_IN, SCREEN_HEIGHT/2 + MARGIN_IN}
         };
 
-        void drawButton(int i, bool selected=false, bool off=false){
+        void drawButton(short i, bool selected=false, bool off=false){
             if (selected){
                 gfx->fillRoundRect(COORDS[i].x, COORDS[i].y, BUTTON_WIDTH, BUTTON_HEIGHT, ROUND, COLORS[i]);
                 gfx->drawRoundRect(COORDS[i].x, COORDS[i].y, BUTTON_WIDTH, BUTTON_HEIGHT, ROUND, WHITE);
@@ -162,40 +228,50 @@ class ButtonManager {
         }
 };
 
-ButtonManager buttonManager;
 
 void answerSelectionLoop(){
-    buttonManager.drawButtons();
-    short answer = -1;
-    while (answer == -1){
-        buttonsLoop();
-        if (buttonA.isPressed()){
-            answer = buttonManager.getSelection();
-        } else {
-            short dir = 0;
-            if (buttonUp.isPressed() || buttonDown.isPressed()){
-                dir = VERTICAL;
-            } else if (buttonRight.isPressed() || buttonLeft.isPressed()){
-                dir = HORIZONTAL;
+    do {
+        ButtonManager buttonManager;
+        clearLeds();
+        for (auto j = 0; j<10; j++){
+            for (auto i=0; i<8; i++){
+                ledState[i] = !ledState[i];
             }
-            if (dir != 0) buttonManager.moveSelection(dir);
+            drawLeds();
+            delay(50);
         }
-    }
-    buttonManager.selectAnswer(answer);
-}
+        buttonManager.drawButtons();
+        short answer = -1;
+        while (answer == -1){
+            buttonsLoop();
+            if (buttonA.isPressed()){
+                answer = buttonManager.getSelection();
+            } else {
+                short dir = 0;
+                if (buttonUp.isPressed() || buttonDown.isPressed()){
+                    dir = VERTICAL;
+                } else if (buttonRight.isPressed() || buttonLeft.isPressed()){
+                    dir = HORIZONTAL;
+                }
+                if (dir != 0) buttonManager.moveSelection(dir);
+            }
+        }
+        
+        buttonManager.drawButtons(true);
+        CustomResponse response = apiHandler.sendAnswer(answer);
+        gfx->fillRoundRect(0, SCREEN_HEIGHT/2 - 20, SCREEN_WIDTH, 40, 5, BLACK);
+        gfx->drawRoundRect(0, SCREEN_HEIGHT/2 - 20, SCREEN_WIDTH, 40, 5, WHITE);
+        printCentered(response.error ? response.body : "Respuesta enviada!", SCREEN_HEIGHT/2 - 4, response.error ? KH_RED : KH_GREEN);
+        delay(500);
 
-void printCentered(const char *text, short y, short color=WHITE, short size=1){
-    int16_t x1, y1;
-    uint16_t w, h;
-    gfx->setTextColor(color);
-    gfx->setTextSize(size);
-    gfx->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-    gfx->setCursor(SCREEN_WIDTH/2 - w/2, y);
-    gfx->print(text);
-}
-
-void printCentered(String text, short y, short color=WHITE, short size=1){
-    printCentered(text.c_str(), y, color, size);
+        short i = 0;
+        do {
+            waitingLeds(i);
+            i = (i+1) % 8;
+        } while (!apiHandler.gameIsNextQuestion() && !apiHandler.gameHasEnded());
+        clearLeds();
+        gfx->fillScreen(BLACK);
+    } while (!apiHandler.gameHasEnded());
 }
 
 String pinSelection(){
@@ -269,31 +345,43 @@ String pinSelection(){
  * @param c: character to be represented
  */
 void assignLeds(char c){
-    for (int i=7, j=1; i>=0, j<=256; i--, j*=2){
+    for (auto i=7, j=1; i>=0, j<=256; i--, j*=2){
         ledState[i] = (j & c) != 0;
     }
 }
 
+void waitingLeds(short i){
+    ledState[i] = true;
+    drawLeds();
+    delay(950); // almost 1 second, to account for the response time of the server
+    ledState[i] = false;
+}
+
 void waitingScreen(String alias){
-    gfx->fillScreen(BLACK);
     printCentered("Todo listo!", SCREEN_HEIGHT/6, KH_GREEN);
-    printCentered("Comenzaremos en", SCREEN_HEIGHT/4);
-    printCentered("breves momentos", SCREEN_HEIGHT/4 + 9);
+    printCentered("Comenzaremos en", SCREEN_HEIGHT/4 + 10);
+    printCentered("breves momentos", SCREEN_HEIGHT/4 + 10 + 9);
 
-    printCentered("Tu alias es:", SCREEN_HEIGHT/2);
-    printCentered(alias, 2*SCREEN_HEIGHT/3, KH_YELLOW, 2);
+    printCentered("Tu alias es:", SCREEN_HEIGHT/2 + 10);
+    printCentered(alias, 2*SCREEN_HEIGHT/3 + 10, KH_YELLOW, 2);
 
-    int i = 0;
+    short i = 0;
     do {
-        ledState[i] = true;
-        drawLeds();
-        delay(1000);
-        ledState[i] = false;
+        waitingLeds(i);
         i = (i+1) % 8;
-    } while (!apiHandler.game_has_started());
+    } while (!apiHandler.gameHasStarted());
     
     clearLeds();
     gfx->fillScreen(BLACK);
+}
+
+void finalScreen(String alias){
+    printCentered("Fin del juego!", SCREEN_HEIGHT/6, KH_BLUE);
+    printCentered("Si has ganado, no", SCREEN_HEIGHT/4 + 10);
+    printCentered("apages la pantalla.", SCREEN_HEIGHT/4 + 10 + 9);
+
+    printCentered("Tu alias es:", SCREEN_HEIGHT/2 + 10);
+    printCentered(alias, 2*SCREEN_HEIGHT/3 + 10, KH_YELLOW, 2);
 }
 
 void connectWiFi(){
@@ -318,8 +406,7 @@ void setup(){
     String alias = pinSelection();
     waitingScreen(alias);
     answerSelectionLoop();
+    finalScreen(alias);
 }
 
-void loop(){
-
-}
+void loop(){}
