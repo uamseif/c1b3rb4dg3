@@ -31,8 +31,6 @@
 #define API_GUESS API_URL "guess/"
 
 
-const char* funny_text = "Hola mundo!";
-
 struct CustomResponse {
     bool error;
     String body;
@@ -40,8 +38,8 @@ struct CustomResponse {
 
 class APIHandler {
     public:
-        CustomResponse send_pin(int selectedPin){
-            send_request_leds();
+        CustomResponse sendPin(int selectedPin){
+            sendRequestLeds();
             http.begin(API_PARTICIPANT);
             http.addHeader("Content-Type", "application/json");
             String args = "{\"game\": " + String(selectedPin) + "}";
@@ -87,19 +85,18 @@ class APIHandler {
         String uuidP;
         StaticJsonDocument<256> doc;
 
-        void send_request_leds(){
+        void sendRequestLeds(){
             for (int i=7; i>=0; i--){
-                led_state[i] = true;
-                draw_leds();
-                led_state[i] = false;
+                ledState[i] = true;
+                drawLeds();
+                ledState[i] = false;
                 delay(15+2*i);
             }
-            draw_leds();
+            drawLeds();
         }   
 };
 
 APIHandler apiHandler;
-
 
 struct coord {
    int x;
@@ -167,11 +164,11 @@ class ButtonManager {
 
 ButtonManager buttonManager;
 
-void answer_selection_loop(){
+void answerSelectionLoop(){
     buttonManager.drawButtons();
     short answer = -1;
     while (answer == -1){
-        buttons_loop();
+        buttonsLoop();
         if (buttonA.isPressed()){
             answer = buttonManager.getSelection();
         } else {
@@ -187,7 +184,7 @@ void answer_selection_loop(){
     buttonManager.selectAnswer(answer);
 }
 
-void print_centered(const char *text, short y, short color=WHITE, short size=1){
+void printCentered(const char *text, short y, short color=WHITE, short size=1){
     int16_t x1, y1;
     uint16_t w, h;
     gfx->setTextColor(color);
@@ -197,26 +194,26 @@ void print_centered(const char *text, short y, short color=WHITE, short size=1){
     gfx->print(text);
 }
 
-void print_centered(String text, short y, short color=WHITE, short size=1){
-    print_centered(text.c_str(), y, color, size);
+void printCentered(String text, short y, short color=WHITE, short size=1){
+    printCentered(text.c_str(), y, color, size);
 }
 
-String pin_selection(){
+String pinSelection(){
     const short positions[3] = {SCREEN_WIDTH/2 -20-5-10, SCREEN_WIDTH/2-10, SCREEN_WIDTH/2 +10+5};
     CustomResponse response;
     short digits[3] = {0,0,0};
     short i = 0;
     
     do {
-        print_centered("Introduce el    ", 14 + 9);
-        print_centered("             pin", 14 + 9, KH_YELLOW);
-        print_centered("que se muestra en", 14 + 18);
-        print_centered("pantalla y pulsa A", 14 + 27);       
+        printCentered("Introduce el    ", 14 + 9);
+        printCentered("             pin", 14 + 9, KH_YELLOW);
+        printCentered("que se muestra en", 14 + 18);
+        printCentered("pantalla y pulsa A", 14 + 27);       
 
         short pin = -1;
         bool changed = true;
         do {
-            buttons_loop();
+            buttonsLoop();
             
             if(buttonUp.isPressed()){
                 digits[i] = (digits[i] + 1) % 10;
@@ -255,10 +252,10 @@ String pin_selection(){
             }
         } while (pin == -1);
 
-        response = apiHandler.send_pin(pin);
+        response = apiHandler.sendPin(pin);
         if (response.error){
             gfx->fillScreen(BLACK);
-            print_centered(response.body, 60, KH_RED);
+            printCentered(response.body, 60, KH_RED);
         }
     } while (response.error);
 
@@ -267,39 +264,39 @@ String pin_selection(){
 }
 
 /*
- * Sets led_state to the corresponding values, such that the leds light up
+ * Sets ledState to the corresponding values, such that the leds light up
  * according to the binary representation of the ascii code of character c
  * @param c: character to be represented
  */
-void assign_leds(char c){
+void assignLeds(char c){
     for (int i=7, j=1; i>=0, j<=256; i--, j*=2){
-        led_state[i] = (j & c) != 0;
+        ledState[i] = (j & c) != 0;
     }
 }
 
-void waiting_screen(String alias){
+void waitingScreen(String alias){
     gfx->fillScreen(BLACK);
-    print_centered("Todo listo!", SCREEN_HEIGHT/6, KH_GREEN);
-    print_centered("Comenzaremos en", SCREEN_HEIGHT/4);
-    print_centered("breves momentos", SCREEN_HEIGHT/4 + 9);
+    printCentered("Todo listo!", SCREEN_HEIGHT/6, KH_GREEN);
+    printCentered("Comenzaremos en", SCREEN_HEIGHT/4);
+    printCentered("breves momentos", SCREEN_HEIGHT/4 + 9);
 
-    print_centered("Tu alias es:", SCREEN_HEIGHT/2);
-    print_centered(alias, 2*SCREEN_HEIGHT/3, KH_YELLOW, 2);
+    printCentered("Tu alias es:", SCREEN_HEIGHT/2);
+    printCentered(alias, 2*SCREEN_HEIGHT/3, KH_YELLOW, 2);
 
     int i = 0;
     do {
-        led_state[i] = true;
-        draw_leds();
+        ledState[i] = true;
+        drawLeds();
         delay(1000);
-        led_state[i] = false;
+        ledState[i] = false;
         i = (i+1) % 8;
     } while (!apiHandler.game_has_started());
     
-    clear_leds();
+    clearLeds();
     gfx->fillScreen(BLACK);
 }
 
-void connect_wifi(){
+void connectWiFi(){
     gfx->fillScreen(BLACK);
     WiFi.mode(WIFI_STA);
     WiFi.begin(SSID, PASSWD);
@@ -316,11 +313,11 @@ void connect_wifi(){
 }
 
 void setup(){
-    setup_badge();
-    connect_wifi();
-    String alias = pin_selection();
-    waiting_screen(alias);
-    answer_selection_loop();
+    setupBadge();
+    connectWiFi();
+    String alias = pinSelection();
+    waitingScreen(alias);
+    answerSelectionLoop();
 }
 
 void loop(){

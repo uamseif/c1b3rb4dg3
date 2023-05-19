@@ -7,19 +7,19 @@ an assignment for the course _Proyecto de Sistemas Informáticos_.
 > TODO: Add link to the API repository, and expand this README
 
 ## Important notes
-To make the project work, you need to create a file called `wifi_config.h`
+To make the project work, you need to create a file called `wifiConfig.h`
 in the root folder of the project, with the following content:
 
 ```c++
 /*
-    wifi_creds.h
+    wifiConfig.h
 
     File containing your WiFi credentials
     This file is ignored in the .gitignore file
 */
 
-#ifndef wifi_creds_h
-#define wifi_creds_h
+#ifndef wifiConfig_h
+#define wifiConfig_h
 
 const char* SSID = "<Your SSID here>";
 const char* PASSWD = "<Your PASSWORD here>";
