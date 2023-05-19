@@ -6,6 +6,9 @@
 
 #include <Arduino_GFX_Library.h>
 #include <ezButton.h>
+#include "logoCibertracks.c"
+#include "logoSEIF.c"
+#include "logoSEIFGlitch.c"
 
 #define ARRAY_SIZE(array) ((sizeof(array))/(sizeof(array[0])))
 
@@ -30,7 +33,7 @@
 #define LED_8_PIN                           15
 
 extern int leds[];
-extern bool led_state[];
+extern bool ledState[];
 
 extern Arduino_DataBus *bus; // Arduino_ESP32SPI
 extern Arduino_GFX *gfx; // Arduino_ST7735
@@ -48,12 +51,17 @@ extern ezButton buttonB;
  * Sets up all the pinModes and the screen
  * This function should be called in the setup() function of the main sketch
  */
-void setup_badge();
+void setupBadge();
 
 /*
- * Lights up the LEDs based on the led_state array
+ * Lights up the LEDs based on the ledState array
  */
-void draw_leds();
+void drawLeds();
+
+/*
+ * Turns off all the LEDs
+ */
+void clearLeds();
 
 /*
  * Turns off all the LEDs
@@ -63,11 +71,11 @@ void clear_leds();
 /*
  * Draws the c1b3rtr4cks logo, then the SEIF logo with a glitch effect
  */
-void splash_screen();
+void splashScreen();
 
 /*
  * Calls loop() method on all the buttons
  */
-void buttons_loop();
+void buttonsLoop();
 
 #endif

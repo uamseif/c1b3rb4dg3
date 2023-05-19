@@ -3,12 +3,9 @@
 */
 
 #include "base.h"
-#include "logo_cibertracks.c"
-#include "logo_seif.c"
-#include "logo_seif_glitch.c"
 
 int leds[] = {LED_1_PIN, LED_2_PIN, LED_3_PIN, LED_4_PIN, LED_5_PIN, LED_6_PIN, LED_7_PIN, LED_8_PIN};
-bool led_state[] = {false, false, false, false, false, false, false, false};
+bool ledState[] = {false, false, false, false, false, false, false, false};
 
 Arduino_DataBus *bus =  new Arduino_ESP32SPI(2, 5, 18, 23, GFX_NOT_DEFINED);
 Arduino_GFX *gfx = new Arduino_ST7735(bus, 4, 2, false, SCREEN_WIDTH, SCREEN_HEIGHT, 2, 3, 2, 1, false);
@@ -25,7 +22,7 @@ ezButton buttonB(BUTTON_B_PIN);
  * Sets up all the pinModes and the screen
  * This function should be called in the setup() function of the main sketch
  */
-void setup_badge(){
+void setupBadge(){
     pinMode(BUTTON_UP_PIN, INPUT);
     pinMode(BUTTON_DOWN_PIN, INPUT);
     pinMode(BUTTON_LEFT_PIN, INPUT);
@@ -43,11 +40,20 @@ void setup_badge(){
 }
 
 /*
- * Lights up the LEDs based on the led_state array
+ * Lights up the LEDs based on the ledState array
  */
-void draw_leds() {
+void drawLeds() {
     for (int i = 0; i < ARRAY_SIZE(leds); i++) {
-        digitalWrite(leds[i], led_state[i]?HIGH:LOW);
+        digitalWrite(leds[i], ledState[i]?HIGH:LOW);
+    }
+}
+
+/*
+ * Turns off all the LEDs
+ */
+void clearLeds() {
+    for (int i = 0; i < ARRAY_SIZE(leds); i++) {
+        digitalWrite(leds[i], LOW);
     }
 }
 
@@ -63,21 +69,21 @@ void clear_leds() {
 /*
  * Draws the c1b3rtr4cks logo, then the SEIF logo with a glitch effect
  */
-void splash_screen() {
+void splashScreen() {
 	gfx->fillScreen(BLACK);
-	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_cibertracks, 128, 160);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logoCibertracks, 128, 160);
 	delay(1500);
 
 	gfx->fillScreen(BLACK);
-	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif, 128, 160);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logoSEIF, 128, 160);
 	delay(500);
-	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif_glitch, 128, 160);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logoSEIFGlitch, 128, 160);
 	delay(150);
-	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif, 128, 160);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logoSEIF, 128, 160);
 	delay(800);
-	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif_glitch, 128, 160);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logoSEIFGlitch, 128, 160);
 	delay(100);
-	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logo_seif, 128, 160);
+	gfx->draw16bitRGBBitmap(0, 0, (const uint16_t *)logoSEIF, 128, 160);
 	delay(800);
 	
     gfx->fillScreen(BLACK);
@@ -86,7 +92,7 @@ void splash_screen() {
 /*
  * Calls loop() method on all the buttons
  */
-void buttons_loop() {
+void buttonsLoop() {
   buttonUp.loop();
   buttonDown.loop();
   buttonLeft.loop();
