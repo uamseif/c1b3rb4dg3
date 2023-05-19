@@ -37,6 +37,7 @@ void setupBadge(){
 
     gfx->begin();
     gfx->fillScreen(BLACK);
+	clearLeds();
 }
 
 /*
@@ -53,6 +54,7 @@ void drawLeds() {
  */
 void clearLeds() {
     for (int i = 0; i < ARRAY_SIZE(leds); i++) {
+		ledState[i] = false;
         digitalWrite(leds[i], LOW);
     }
 }
