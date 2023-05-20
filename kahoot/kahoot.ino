@@ -1,5 +1,5 @@
 #include "base.h"
-#include "wifi_creds.h"
+#include "wifiConfig.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
