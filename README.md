@@ -9,10 +9,6 @@ This repository contains a __base library__ to be used in the programs developed
 the badge. The library is located in the `base` directory. To use it, refer to the
 [README](base/README.md) file in that directory.
 
-The repository also contains multiple programs that can be compiled and loaded
+The repository also contains various programs that can be compiled and loaded
 into the badge. Each program is located in its own directory. For more information
 about each program, refer to the README file in the corresponding directory.
-
-## Requirements
-
-> TODO: Add requirements, maybe copy from the board_tester README
