@@ -1,8 +1,13 @@
 #include "base.h"
 
+#define GAME_WIDTH              128
+#define GAME_HEIGHT             128
+
+#define OFFSET_Y                SCREEN_HEIGHT-GAME_HEIGHT
+
 #define GRID_SIZE               8
-#define COLS                    SCREEN_WIDTH/GRID_SIZE 
-#define ROWS                    SCREEN_HEIGHT/GRID_SIZE 
+#define COLS                    GAME_WIDTH/GRID_SIZE 
+#define ROWS                    GAME_HEIGHT/GRID_SIZE 
 #define INITIAL_SNAKE_SIZE      5
 #define MAX_SNAKE_SIZE          COLS*ROWS
 #define INITIAL_X               COLS/2
@@ -21,6 +26,21 @@ struct Snake {
   coord dir;
   coord prevDir;
 };
+
+void printCentered(const char *text, short y, short color=WHITE, short size=1){
+    int16_t x1, y1;
+    uint16_t w, h;
+    gfx->setTextColor(color);
+    gfx->setTextSize(size);
+    gfx->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+    gfx->drawRect(SCREEN_WIDTH/2 - w/2 - 1, y - 1, w + 2, h + 2, BLACK);
+    gfx->setCursor(SCREEN_WIDTH/2 - w/2, y);
+    gfx->print(text);
+}
+
+void printCentered(String text, short y, short color=WHITE, short size=1){
+    printCentered(text.c_str(), y, color, size);
+}
 
 // Global variables for the game
 Snake snake;
@@ -52,6 +72,7 @@ void setupGame(){
   gameMap[snake.head.x][snake.head.y] = true;
 
   gfx->fillScreen(BLACK);
+  printCentered("POINTS: 0", 13);
 }
 
 float calculateDeltaTime(){
@@ -76,7 +97,7 @@ struct coord checkDir(){
 }
 
 void removeFirst(){
-  gfx->fillRect(snake.body[0].x * GRID_SIZE, snake.body[0].y * GRID_SIZE, GRID_SIZE, GRID_SIZE, BLACK);
+  gfx->fillRect(snake.body[0].x * GRID_SIZE, snake.body[0].y * GRID_SIZE + OFFSET_Y, GRID_SIZE, GRID_SIZE, BLACK);
   gameMap[snake.body[0].x][snake.body[0].y] = false;
   for(int j=1; j<snake.len; j++){
     snake.body[j-1]= snake.body[j];
@@ -87,15 +108,21 @@ void removeFirst(){
 void updateSnake(){
   coord newHead = {snake.head.x+snake.dir.x, snake.head.y+snake.dir.y};
 
-  //Handle Borders
-  if(newHead.x == COLS){
-    newHead.x = 0;
-  }else if(newHead.x == -1){
-    newHead.x = COLS-1;
-  }else if(newHead.y == ROWS){
-    newHead.y = 0;
-  }else if(newHead.y == -1){
-    newHead.y = ROWS-1;
+  // Uncomment to wrap arround the screen
+  // if(newHead.x == COLS){
+  //   newHead.x = 0;
+  // }else if(newHead.x == -1){
+  //   newHead.x = COLS-1;
+  // }else if(newHead.y == ROWS){
+  //   newHead.y = 0;
+  // }else if(newHead.y == -1){
+  //   newHead.y = ROWS-1;
+  // }
+
+  //Check if the snake hits the wall
+  if(newHead.x == COLS || newHead.x == -1 || newHead.y == ROWS || newHead.y == -1){
+    gameOver();
+    return;
   }
   
   //Check If The Snake hits itself
@@ -110,7 +137,9 @@ void updateSnake(){
   if(apple.x == newHead.x && apple.y == newHead.y){
     snake.len = snake.len+1;
     apple = moveApple();
-  }else{
+    gfx->fillRect(0, 0, SCREEN_WIDTH, OFFSET_Y, BLACK);
+    printCentered("POINTS: " + String(snake.len-5), 13);
+  } else {
     removeFirst(); //Shifting the array to the left
   }
   
@@ -120,14 +149,16 @@ void updateSnake(){
 }
 
 void renderSnake(){
-  gfx->fillRect(apple.x * GRID_SIZE, apple.y * GRID_SIZE, GRID_SIZE, GRID_SIZE, RED);
-  gfx->drawRect(apple.x * GRID_SIZE, apple.y * GRID_SIZE, GRID_SIZE, GRID_SIZE, BLACK);
+  gfx->fillRect(apple.x * GRID_SIZE, apple.y * GRID_SIZE + OFFSET_Y, GRID_SIZE, GRID_SIZE, RED);
+  gfx->drawRect(apple.x * GRID_SIZE, apple.y * GRID_SIZE + OFFSET_Y, GRID_SIZE, GRID_SIZE, BLACK);
   for (int i=0; i<snake.len-1; i++){
-    gfx->fillRect(snake.body[i].x * GRID_SIZE, snake.body[i].y * GRID_SIZE, GRID_SIZE, GRID_SIZE, WHITE);
-    gfx->drawRect(snake.body[i].x * GRID_SIZE, snake.body[i].y * GRID_SIZE, GRID_SIZE, GRID_SIZE, BLACK);
+    gfx->fillRect(snake.body[i].x * GRID_SIZE, snake.body[i].y * GRID_SIZE + OFFSET_Y, GRID_SIZE, GRID_SIZE, LIGHTGREY);
+    gfx->drawRect(snake.body[i].x * GRID_SIZE, snake.body[i].y * GRID_SIZE + OFFSET_Y, GRID_SIZE, GRID_SIZE, BLACK);
   }
-  gfx->fillRect(snake.head.x * GRID_SIZE, snake.head.y * GRID_SIZE, GRID_SIZE, GRID_SIZE, GREEN);
-  gfx->drawRect(snake.head.x * GRID_SIZE, snake.head.y * GRID_SIZE, GRID_SIZE, GRID_SIZE, BLACK);
+  gfx->fillRect(snake.head.x * GRID_SIZE, snake.head.y * GRID_SIZE + OFFSET_Y, GRID_SIZE, GRID_SIZE, DARKGREEN);
+  gfx->drawRect(snake.head.x * GRID_SIZE, snake.head.y * GRID_SIZE + OFFSET_Y, GRID_SIZE, GRID_SIZE, BLACK);
+
+  gfx->drawRect(0, OFFSET_Y, GAME_WIDTH, GAME_HEIGHT, WHITE);
 }
 
 void snakeLoop(){
@@ -155,19 +186,34 @@ void snakeLoop(){
 void gameOver(){
   restart = true;
   //draw horizontal lines from top to bottom until the screen is filled with white
-  for(int i=0; i<ROWS; i++){
-    gfx->drawLine(0, i*GRID_SIZE, SCREEN_WIDTH, i*GRID_SIZE, WHITE);
-    delay(50);
+  for(int h=-3*GRID_SIZE; h<SCREEN_HEIGHT; h+=GRID_SIZE){
+    gfx->fillRect(0, h+3*GRID_SIZE, GAME_WIDTH, GRID_SIZE, WHITE);
+    gfx->fillRect(0, h+2*GRID_SIZE, GAME_WIDTH, GRID_SIZE, LIGHTGREY);
+    gfx->fillRect(0, h+GRID_SIZE,   GAME_WIDTH, GRID_SIZE, DARKGREY);
+    gfx->fillRect(0, h,             GAME_WIDTH, GRID_SIZE, BLACK);
+    delay(40);
   }
-  //draw text GAME OVER centre of the screen with withe background
-  int offset = 6;
-  gfx->fillRect(SCREEN_WIDTH/2-27-offset, SCREEN_HEIGHT/2-3-offset, 54+2*offset, 7+2*offset, WHITE);
-  gfx->setCursor(SCREEN_WIDTH/2-27, SCREEN_HEIGHT/2-3);
-  gfx->setTextColor(RED);
-  gfx->setTextSize(1);
-  gfx->print("GAME OVER");
+  delay(200);
+  printCentered("GAME", SCREEN_HEIGHT/3-30, RED, 2);
+  delay(400);
+  printCentered("OVER", SCREEN_HEIGHT/3-10, RED, 2);
+  delay(1000);
+  printCentered("POINTS: " + String(snake.len-5), 2*SCREEN_HEIGHT/3-18);
+  delay(500);
 
-  delay(3000);
+  int i = 0;
+  while(!buttonA.isPressed()){
+    buttonsLoop();
+    i++;
+    if(i == 50){
+      printCentered("PRESS   TO RESTART", 2*SCREEN_HEIGHT/3+20, WHITE);
+      printCentered("      A           ", 2*SCREEN_HEIGHT/3+20, YELLOW);
+    } else if (i == 100){
+      i = 0;
+      printCentered("PRESS A TO RESTART", 2*SCREEN_HEIGHT/3+20, BLACK); // clear the text
+    }
+    delay(10);
+  }
 }
 
 coord moveApple(){
@@ -180,8 +226,8 @@ coord moveApple(){
 
 void setup() {
   setupBadge();
-  setupGame();
   splashScreen();
+  setupGame();
 }
 
 void loop() {
