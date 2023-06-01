@@ -25,7 +25,7 @@ To install them, open the [Arduino IDE](https://www.arduino.cc/en/software) and 
 To use the library, you must first include it in your program. To do so,
 add the following line at the beginning of your program:
 
-```arduino
+```c++
 #include 'base.h'
 ```
 
@@ -33,7 +33,7 @@ Then, you must call the `setup_badge()` function in the `setup()` function
 of your sketch. This function initializes the badge and must be called
 before any other function of the library.
 
-```arduino
+```c++
 void setup() {
     setup_badge();
     // ...
