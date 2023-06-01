@@ -62,6 +62,14 @@ void drawLeds();
  * Turns off all the LEDs
  */
 void clearLeds();
+<<<<<<< HEAD
+=======
+
+/*
+ * Turns off all the LEDs
+ */
+void clear_leds();
+>>>>>>> kahoot
 
 /*
  * Draws the c1b3rtr4cks logo, then the SEIF logo with a glitch effect

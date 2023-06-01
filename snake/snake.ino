@@ -52,6 +52,7 @@ bool restart = true;
 bool gameMap[COLS][ROWS];
 
 void setupGame(){
+void setupGame(){
   snake = {
     INITIAL_POS,
     {INITIAL_POS, INITIAL_POS, INITIAL_POS, INITIAL_POS, INITIAL_POS},
@@ -59,6 +60,7 @@ void setupGame(){
     {1,0},
     {1,0}
   };
+  apple = moveApple();
   apple = moveApple();
   oldTime = 0;
   timer = 0;
@@ -84,6 +86,8 @@ float calculateDeltaTime(){
 
 struct coord checkDir(){
   buttonsLoop();
+struct coord checkDir(){
+  buttonsLoop();
   if (buttonUp.isPressed()){
     return {0,-1};
   } else if (buttonDown.isPressed()){
@@ -105,6 +109,7 @@ void removeFirst(){
   gameMap[snake.head.x][snake.head.y] = true;
 }
 
+void updateSnake(){
 void updateSnake(){
   coord newHead = {snake.head.x+snake.dir.x, snake.head.y+snake.dir.y};
 
@@ -162,7 +167,9 @@ void renderSnake(){
 }
 
 void snakeLoop(){
+void snakeLoop(){
   if (restart){
+    setupGame();
     setupGame();
     return;
   }
@@ -180,9 +187,12 @@ void snakeLoop(){
     timer = 0;
     updateSnake();
     renderSnake();
+    updateSnake();
+    renderSnake();
   }
 }
 
+void gameOver(){
 void gameOver(){
   restart = true;
   //draw horizontal lines from top to bottom until the screen is filled with white
@@ -231,5 +241,6 @@ void setup() {
 }
 
 void loop() {
+  snakeLoop();
   snakeLoop();
 }

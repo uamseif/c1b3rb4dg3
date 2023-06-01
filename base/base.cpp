@@ -54,7 +54,19 @@ void drawLeds() {
  */
 void clearLeds() {
     for (int i = 0; i < ARRAY_SIZE(leds); i++) {
+<<<<<<< HEAD
 		ledState[i] = false;
+=======
+        digitalWrite(leds[i], LOW);
+    }
+}
+
+/*
+ * Turns off all the LEDs
+ */
+void clear_leds() {
+    for (int i = 0; i < ARRAY_SIZE(leds); i++) {
+>>>>>>> kahoot
         digitalWrite(leds[i], LOW);
     }
 }
