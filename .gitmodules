@@ -1,0 +1,3 @@
+[submodule "ESP32Marauder"]
+	path = ESP32Marauder
+	url = https://github.com/uamseif/ESP32Marauder.git
